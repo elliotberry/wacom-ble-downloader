@@ -13,10 +13,5 @@
     "noble-mac": "git+https://github.com/Timeular/noble-mac",
     "commander": "^11.0.0"
   },
-  "engines": {
-    "node": ">=12.0.0"
-  },
-  "author": "",
-  "license": "MIT"
+  "type": "module"
 }
-

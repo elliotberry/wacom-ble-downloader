@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const { program } = require('commander');
-const WacomBLE = require('./lib/wacom-ble');
-const config = require('./lib/config');
-const fs = require('fs');
-const path = require('path');
+import {program} from 'commander';
+import WacomBLE from './lib/wacom-ble.js';
+import config from './lib/config.js';
+import fs from 'fs';
+import path from 'path';
 
 program
   .name('wacom-download')
@@ -17,9 +17,9 @@ program
   .option('-o, --output <dir>', 'Output directory for SVG files', './notes')
   .option('-t, --timeout <ms>', 'Scan timeout in milliseconds', '30000')
   .option('-v, --verbose', 'Enable verbose logging', false)
-  .action(async (options) => {
+  .action(async ({output, verbose, timeout}) => {
     try {
-      const outputDir = path.resolve(options.output);
+      const outputDir = path.resolve(output);
       
       // Create output directory if it doesn't exist
       if (!fs.existsSync(outputDir)) {
@@ -29,12 +29,12 @@ program
 
       console.log('Scanning for Wacom devices...');
       console.log('(Make sure your device is powered on. You may need to press the button briefly to wake it up.)');
-      if (options.verbose) {
+      if (verbose) {
         console.log('(Verbose mode: showing all discovered BLE devices)');
       }
-      const wacom = new WacomBLE(options.verbose);
+      const wacom = new WacomBLE(verbose);
       
-      const device = await wacom.scanAndConnect(parseInt(options.timeout), false);
+      const device = await wacom.scanAndConnect(parseInt(timeout), false);
       if (!device) {
         console.error('No Wacom device found or connection failed');
         process.exit(1);
@@ -71,7 +71,7 @@ program
   .description('Register a new Wacom device')
   .option('-t, --timeout <ms>', 'Scan timeout in milliseconds', '30000')
   .option('-v, --verbose', 'Enable verbose logging', false)
-  .action(async (options) => {
+  .action(async ({verbose, timeout}) => {
     try {
       console.log('=== Wacom Device Registration ===');
       console.log('');
@@ -83,12 +83,12 @@ program
       console.log('');
       
       console.log('Scanning for Wacom devices...');
-      if (options.verbose) {
+      if (verbose) {
         console.log('(Verbose mode: showing all discovered BLE devices)');
       }
-      const wacom = new WacomBLE(options.verbose);
+      const wacom = new WacomBLE(verbose);
       
-      const device = await wacom.scanAndConnect(parseInt(options.timeout), true);
+      const device = await wacom.scanAndConnect(parseInt(timeout), true);
       if (!device) {
         console.error('No Wacom device found or connection failed');
         process.exit(1);
