@@ -146,6 +146,56 @@ program
     });
   });
 
+program
+  .command('deregister <address>')
+  .description('Deregister a Wacom device by its Bluetooth address')
+  .action((address) => {
+    try {
+      if (!config.isValidAddress(address)) {
+        console.error(`Error: Invalid Bluetooth address format: ${address}`);
+        console.error('Expected format: XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX');
+        process.exit(1);
+      }
+
+      const device = config.deregisterDevice(address);
+      console.log('Device deregistered successfully!');
+      console.log(`  Address: ${device.address}`);
+      console.log(`  UUID: ${device.uuid}`);
+      console.log(`  Protocol: ${device.protocol}`);
+      console.log(`  Was registered: ${device.registeredAt}`);
+      process.exit(0);
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('deregister-all')
+  .description('Deregister all registered Wacom devices')
+  .action(() => {
+    try {
+      const devices = config.deregisterAllDevices();
+      const addresses = Object.keys(devices);
+      const count = addresses.length;
+
+      console.log(`Successfully deregistered ${count} device(s):`);
+      console.log('');
+      addresses.forEach(address => {
+        const device = devices[address];
+        console.log(`  Address: ${device.address}`);
+        console.log(`  UUID: ${device.uuid}`);
+        console.log(`  Protocol: ${device.protocol}`);
+        console.log(`  Was registered: ${device.registeredAt}`);
+        console.log('');
+      });
+      process.exit(0);
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
 // Default to download command if no command specified
 if (process.argv.length === 2) {
   process.argv.push('download');
