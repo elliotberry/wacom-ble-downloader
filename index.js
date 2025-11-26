@@ -50,21 +50,9 @@ program
       console.log(`\nFound registered device: ${device.name || device.id}`);
       console.log('Connecting and authenticating...');
       
-      // Download all notes
-      const notes = await wacom.downloadAllNotes();
-      console.log(`Downloaded ${notes.length} note(s)`);
-
-      // Save each note as SVG
-      for (let i = 0; i < notes.length; i++) {
-        const note = notes[i];
-        const timestamp = note.timestamp 
-          ? new Date(note.timestamp * 1000).toISOString().replace(/[:.]/g, '-').slice(0, -5)
-          : `note-${i + 1}`;
-        const filename = path.join(outputDir, `${timestamp}.svg`);
-        
-        fs.writeFileSync(filename, note.svg);
-        console.log(`Saved: ${filename}`);
-      }
+      // Download all notes (they are saved immediately during download)
+      const notes = await wacom.downloadAllNotes(outputDir);
+      console.log(`\nDownloaded ${notes.length} note(s)`);
 
       await wacom.disconnect();
       console.log('Done!');
