@@ -4,19 +4,36 @@ A Node.js CLI tool to connect to Wacom BLE devices (Bamboo Spark, Bamboo Slate, 
 
 ## Installation
 
+You can run the CLI directly with `npx`, or install it globally:
+
 ```bash
-cd node-program-dir
+# from the node-program-dir folder
 npm install
+
+# optional: make the wacom-download binary available everywhere
+npm install --global .
 ```
 
 ## Usage
+
+### Command Summary
+
+```bash
+wacom-download register           # pair a new device
+wacom-download download [opts]    # fetch & delete all notes
+wacom-download list               # show registered devices
+wacom-download deregister <addr>  # remove one device
+wacom-download deregister-all     # remove every device
+```
+
+Add `-v` to any command for verbose BLE logging.
 
 ### Register a Device
 
 Before downloading notes, you must register your Wacom device:
 
 ```bash
-node index.js register
+wacom-download register
 ```
 
 Follow the on-screen instructions:
@@ -29,35 +46,39 @@ Follow the on-screen instructions:
 After registration, download notes from your device:
 
 ```bash
-node index.js download [options]
+wacom-download download [options]
 ```
 
 Options:
 - `-o, --output <dir>` - Output directory for SVG files (default: `./notes`)
 - `-t, --timeout <ms>` - Scan timeout in milliseconds (default: `30000`)
+- `-v, --verbose` - Log every BLE event and file chunk
 
 ### List Registered Devices
 
 View all registered devices:
 
 ```bash
-node index.js list
+wacom-download list
 ```
 
 ### Examples
 
 ```bash
 # Register a new device
-node index.js register
+wacom-download register
 
 # Download notes to default ./notes directory
-node index.js download
+wacom-download download
 
 # Download notes to a specific directory
-node index.js download --output ~/my-notes
+wacom-download download --output ~/my-notes
 
 # Use a longer scan timeout
-node index.js download --timeout 60000
+wacom-download download --timeout 60000
+
+# Show verbose BLE logging
+wacom-download download --verbose
 ```
 
 ## Requirements
@@ -71,11 +92,11 @@ node index.js download --timeout 60000
 
 1. Scans for Wacom BLE devices using manufacturer data
 2. Connects to the first device found
-3. Switches device to file transfer mode
-4. Downloads all available notes
-5. Parses stroke data
-6. Converts to SVG format
-7. Saves each note as an SVG file with timestamp-based filename
+3. Authenticates using the saved UUID (registration)
+4. Switches the device to file transfer mode
+5. Downloads and **decompresses** every Smartpad file (same codec as Wacom Inkspace)
+6. Parses the stroke stream into absolute coordinates and pressures
+7. Converts the drawing to SVG and saves it with a timestamp-based filename
 
 ## Notes
 
@@ -84,7 +105,8 @@ node index.js download --timeout 60000
 - **Configuration**: Device UUIDs and protocol information are stored in `~/.wacom-downloader/devices.json`.
 - Notes are deleted from the device after download
 - SVG files are named using the note's timestamp
-- Currently supports Bamboo Spark, Bamboo Slate, and Intuos Pro Paper devices
+- Currently supports Bamboo Spark, Bamboo Slate, Intuos Pro Paper, and compatible Smartpad models.
+- The downloader mirrors Wacom Inkspace’s decompression/parsing logic to ensure the SVG matches what the device recorded.
 
 ## License
 
