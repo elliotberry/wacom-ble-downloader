@@ -1,50 +1,61 @@
 #!/usr/bin/env node
 
 import {program} from 'commander';
-import fs from 'fs';
-import path from 'path';
-import readline from 'readline';
+import fs from 'node:fs';
+import path from 'node:path';
+import inquirer from 'inquirer';
 import WacomBLE from './lib/wacom-ble.js';
 import config from './lib/config.js';
 import logger from './lib/logger.js';
 
-const ask = (rl, prompt) => new Promise((resolve) => rl.question(prompt, resolve));
-
 async function collectProfilePreferences(defaults = {}) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
   const defaultDir = defaults.downloadDir
     ? path.resolve(defaults.downloadDir)
     : path.resolve('./notes');
   const defaultOrientation = defaults.orientation === 'portrait' ? 'portrait' : 'landscape';
 
-  try {
-    logger.blank();
-    logger.headline('Device preferences');
-    logger.info('Answer a few quick questions so we know where to save notes and how your tablet is oriented.');
-    logger.blank();
+  logger.blank();
+  logger.headline('Device preferences');
+  logger.info('Answer a few quick questions so we know where to save notes and how your tablet is oriented.');
+  logger.blank();
 
-    const downloadAnswer = (await ask(rl, `Where should notes be saved? [${defaultDir}] `)).trim();
-    const downloadDir = path.resolve(downloadAnswer || defaultDir);
+  const orientationChoices = [
+    {
+      name: `Landscape${defaultOrientation === 'landscape' ? ' (default)' : ''}`,
+      value: 'landscape'
+    },
+    {
+      name: `Portrait (rotates exported SVG 90 degrees clockwise)${defaultOrientation === 'portrait' ? ' (default)' : ''}`,
+      value: 'portrait'
+    }
+  ];
 
-    const orientationAnswer = (await ask(
-      rl,
-      `Tablet orientation (landscape/portrait) [${defaultOrientation}] `
-    )).trim().toLowerCase();
-    const orientation = orientationAnswer === 'portrait' ? 'portrait' : defaultOrientation;
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'downloadDir',
+      message: 'Where should notes be saved?',
+      default: defaultDir,
+      filter: (input) => path.resolve((input || '').trim() || defaultDir)
+    },
+    {
+      type: 'list',
+      name: 'orientation',
+      message: 'Tablet orientation',
+      choices: orientationChoices,
+      default: defaultOrientation
+    }
+  ]);
 
-    logger.blank();
-    logger.info(`Notes will be downloaded to: ${downloadDir}`);
-    logger.info(`Tablet orientation set to: ${orientation}`);
-    logger.blank();
+  logger.blank();
+  logger.info(`Notes will be downloaded to: ${answers.downloadDir}`);
+  logger.info(`Tablet orientation set to: ${answers.orientation}`);
+  logger.blank();
 
-    return { downloadDir, orientation };
-  } finally {
-    rl.close();
-  }
+  return {
+    downloadDir: answers.downloadDir,
+    orientation: answers.orientation
+  };
 }
 
 program
