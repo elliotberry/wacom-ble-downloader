@@ -3,6 +3,7 @@
 import {program} from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import inquirer from 'inquirer';
 import WacomBLE from './lib/wacom-ble.js';
 import config from './lib/config.js';
@@ -11,7 +12,7 @@ import logger from './lib/logger.js';
 async function collectProfilePreferences(defaults = {}) {
   const defaultDir = defaults.downloadDir
     ? path.resolve(defaults.downloadDir)
-    : path.resolve('./notes');
+    : path.resolve(path.join(os.homedir(), 'wacom-notes'));
   const defaultOrientation = defaults.orientation === 'portrait' ? 'portrait' : 'landscape';
 
   logger.blank();
@@ -103,7 +104,7 @@ program
           outputDir = path.resolve(savedConfig.downloadDir);
           logger.info(`Using saved download directory: ${outputDir}`);
         } else {
-          outputDir = path.resolve('./notes');
+          outputDir = path.resolve(path.join(os.homedir(), 'wacom-notes'));
           logger.note(`No saved download directory found. Using default: ${outputDir}`);
         }
       } else {
@@ -190,7 +191,7 @@ program
 
       const savedDevice = config.getDevice(registrationResult.address) || {};
       const preferences = await collectProfilePreferences({
-        downloadDir: savedDevice.downloadDir || path.resolve('./notes'),
+        downloadDir: savedDevice.downloadDir || path.resolve(path.join(os.homedir(), 'wacom-notes')),
         orientation: savedDevice.orientation || 'landscape'
       });
       const updatedProfile = config.updateDevice(registrationResult.address, preferences);
