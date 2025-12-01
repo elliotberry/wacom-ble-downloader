@@ -3,9 +3,49 @@
 import {program} from 'commander';
 import fs from 'fs';
 import path from 'path';
+import readline from 'readline';
 import WacomBLE from './lib/wacom-ble.js';
 import config from './lib/config.js';
 import logger from './lib/logger.js';
+
+const ask = (rl, prompt) => new Promise((resolve) => rl.question(prompt, resolve));
+
+async function collectProfilePreferences(defaults = {}) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const defaultDir = defaults.downloadDir
+    ? path.resolve(defaults.downloadDir)
+    : path.resolve('./notes');
+  const defaultOrientation = defaults.orientation === 'portrait' ? 'portrait' : 'landscape';
+
+  try {
+    logger.blank();
+    logger.headline('Device preferences');
+    logger.info('Answer a few quick questions so we know where to save notes and how your tablet is oriented.');
+    logger.blank();
+
+    const downloadAnswer = (await ask(rl, `Where should notes be saved? [${defaultDir}] `)).trim();
+    const downloadDir = path.resolve(downloadAnswer || defaultDir);
+
+    const orientationAnswer = (await ask(
+      rl,
+      `Tablet orientation (landscape/portrait) [${defaultOrientation}] `
+    )).trim().toLowerCase();
+    const orientation = orientationAnswer === 'portrait' ? 'portrait' : defaultOrientation;
+
+    logger.blank();
+    logger.info(`Notes will be downloaded to: ${downloadDir}`);
+    logger.info(`Tablet orientation set to: ${orientation}`);
+    logger.blank();
+
+    return { downloadDir, orientation };
+  } finally {
+    rl.close();
+  }
+}
 
 program
   .name('wacom-download')
@@ -15,18 +55,11 @@ program
 program
   .command('download')
   .description('Download notes from a registered Wacom device')
-  .option('-o, --output <dir>', 'Output directory for SVG files', './notes')
+  .option('-o, --output <dir>', 'Output directory for SVG files')
   .option('-t, --timeout <ms>', 'Scan timeout in milliseconds', '30000')
   .option('-v, --verbose', 'Enable verbose logging', false)
   .action(async ({output, verbose, timeout}) => {
     try {
-      const outputDir = path.resolve(output);
-
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-        logger.success(`Created output directory: ${outputDir}`);
-      }
-
       logger.info('Scanning for Wacom devices...');
       logger.detail('Make sure your device is powered on. You may need to press the button briefly to wake it up.');
       if (verbose) {
@@ -50,10 +83,36 @@ program
 
       logger.blank();
       logger.success(`Found registered device: ${device.name || device.id}`);
+      
+      const savedConfig = config.getDevice(device.address);
+      let outputDir = output ? path.resolve(output) : null;
+
+      if (!outputDir) {
+        if (savedConfig?.downloadDir) {
+          outputDir = path.resolve(savedConfig.downloadDir);
+          logger.info(`Using saved download directory: ${outputDir}`);
+        } else {
+          outputDir = path.resolve('./notes');
+          logger.note(`No saved download directory found. Using default: ${outputDir}`);
+        }
+      } else {
+        logger.info(`Using overridden download directory: ${outputDir}`);
+      }
+
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        logger.success(`Created output directory: ${outputDir}`);
+      }
+
+      const orientation = savedConfig?.orientation || 'landscape';
+      if (orientation === 'portrait') {
+        logger.info('Portrait orientation selected: rotating SVG output 90° clockwise.');
+      }
+
       logger.info('Connecting and authenticating...');
       
       // Download all notes (they are saved immediately during download)
-      const notes = await wacom.downloadAllNotes(outputDir);
+      const notes = await wacom.downloadAllNotes(outputDir, { orientation });
       logger.blank();
       logger.success(`Downloaded ${notes.length} note(s)`);
 
@@ -114,11 +173,22 @@ program
       logger.detail(`Address: ${device.address}`);
       
       // Register the device
-      await wacom.registerDevice();
+      const registrationResult = await wacom.registerDevice();
 
       await wacom.disconnect();
+
+      const savedDevice = config.getDevice(registrationResult.address) || {};
+      const preferences = await collectProfilePreferences({
+        downloadDir: savedDevice.downloadDir || path.resolve('./notes'),
+        orientation: savedDevice.orientation || 'landscape'
+      });
+      const updatedProfile = config.updateDevice(registrationResult.address, preferences);
+
       logger.blank();
-      logger.success('Registration complete! You can now use "wacom-download download" to download notes.');
+      logger.success('Registration complete and preferences saved!');
+      logger.detail(`Notes directory: ${updatedProfile.downloadDir}`);
+      logger.detail(`Tablet orientation: ${updatedProfile.orientation}`);
+      logger.note('You can now use "wacom-download download" to sync your notes.');
       process.exit(0);
     } catch (error) {
       logger.blank();
@@ -150,6 +220,8 @@ program
       logger.detail(`UUID: ${device.uuid}`);
       logger.detail(`Protocol: ${device.protocol}`);
       logger.detail(`Registered: ${device.registeredAt}`);
+      logger.detail(`Notes directory: ${device.downloadDir || '(not set)'}`);
+      logger.detail(`Orientation: ${device.orientation}`);
       logger.blank();
     });
   });

@@ -40,6 +40,7 @@ Follow the on-screen instructions:
 1. Hold the button on your Wacom device for 6+ seconds until the LED blinks
 2. Keep the LED blinking while registration proceeds
 3. Press the button when prompted to confirm registration
+4. Answer the questions about where to download notes and whether your tablet is used in landscape or portrait orientation (portrait rotates every exported SVG 90° clockwise)
 
 ### Download Notes
 
@@ -50,7 +51,7 @@ wacom-download download [options]
 ```
 
 Options:
-- `-o, --output <dir>` - Output directory for SVG files (default: `./notes`)
+- `-o, --output <dir>` - Override the saved download directory for this run
 - `-t, --timeout <ms>` - Scan timeout in milliseconds (default: `30000`)
 - `-v, --verbose` - Log every BLE event and file chunk
 
@@ -102,7 +103,7 @@ wacom-download download --verbose
 
 - **Device Registration**: Wacom devices must be registered before downloading notes. Use `wacom-download register` to register a device. The device will only respond to the application that registered it.
 - **Registration Process**: During registration, hold the device button for 6+ seconds until the LED starts blinking, then keep it blinking while registration proceeds.
-- **Configuration**: Device UUIDs and protocol information are stored in `~/.wacom-downloader/devices.json`.
+- **Configuration**: Device UUIDs, preferred download directories, and tablet orientation are stored in `~/.wacom-downloader/devices.json`.
 - Notes are deleted from the device after download
 - SVG files are named using the note's timestamp
 - Currently supports Bamboo Spark, Bamboo Slate, Intuos Pro Paper, and compatible Smartpad models.
