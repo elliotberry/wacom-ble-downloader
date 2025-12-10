@@ -14,7 +14,7 @@
     "cli-spinner": "^0.2.10",
     "commander": "^14.0.2",
     "inquirer": "^13.0.2",
-    "noble-mac": "git+https://github.com/Timeular/noble-mac"
+    "noble-mac": "git+https://github.com/elliotberry/noble-mac"
   },
   "type": "module"
 }
