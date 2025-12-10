@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import {program} from 'commander';
+import yargs from 'yargs/yargs';
+import {hideBin} from 'yargs/helpers';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -59,18 +60,35 @@ async function collectProfilePreferences(defaults = {}) {
   };
 }
 
-program
-  .name('wacom-download')
-  .description('Download notes from Wacom BLE devices as SVG files')
-  .version('1.0.0');
+const cli = yargs(hideBin(process.argv))
+  .scriptName('wacom-download')
+  .usage('$0 <command> [options]')
+  .version('1.0.0')
+  .help()
+  .wrap(null);
 
-program
-  .command('download')
-  .description('Download notes from a registered Wacom device')
-  .option('-o, --output <dir>', 'Output directory for SVG files')
-  .option('-t, --timeout <ms>', 'Scan timeout in milliseconds', '30000')
-  .option('-v, --verbose', 'Enable verbose logging', false)
-  .action(async ({output, verbose, timeout}) => {
+cli.command(
+  ['download', '$0'],
+  'Download notes from a registered Wacom device',
+  (y) => y
+    .option('output', {
+      alias: 'o',
+      type: 'string',
+      describe: 'Output directory for SVG files'
+    })
+    .option('timeout', {
+      alias: 't',
+      type: 'number',
+      default: 30000,
+      describe: 'Scan timeout in milliseconds'
+    })
+    .option('verbose', {
+      alias: 'v',
+      type: 'boolean',
+      default: false,
+      describe: 'Enable verbose logging'
+    }),
+  async ({output, verbose, timeout}) => {
     try {
       logger.info('Scanning for Wacom devices...');
       logger.detail('Make sure your device is powered on. You may need to press the button briefly to wake it up.');
@@ -78,8 +96,9 @@ program
         logger.detail('Verbose mode enabled: showing all discovered BLE devices');
       }
       const wacom = new WacomBLE(verbose);
-      
-      const device = await wacom.scanAndConnect(parseInt(timeout), false);
+      const timeoutMs = Number(timeout);
+
+      const device = await wacom.scanAndConnect(timeoutMs, false);
       if (!device) {
         logger.error('No Wacom device found or connection failed');
         process.exit(1);
@@ -138,14 +157,26 @@ program
       }
       process.exit(1);
     }
-  });
+  }
+);
 
-program
-  .command('register')
-  .description('Register a new Wacom device')
-  .option('-t, --timeout <ms>', 'Scan timeout in milliseconds', '30000')
-  .option('-v, --verbose', 'Enable verbose logging', false)
-  .action(async ({verbose, timeout}) => {
+cli.command(
+  'register',
+  'Register a new Wacom device',
+  (y) => y
+    .option('timeout', {
+      alias: 't',
+      type: 'number',
+      default: 30000,
+      describe: 'Scan timeout in milliseconds'
+    })
+    .option('verbose', {
+      alias: 'v',
+      type: 'boolean',
+      default: false,
+      describe: 'Enable verbose logging'
+    }),
+  async ({verbose, timeout}) => {
     try {
       logger.headline('=== Wacom Device Registration ===');
       logger.blank();
@@ -161,8 +192,9 @@ program
         logger.detail('Verbose mode enabled: showing all discovered BLE devices');
       }
       const wacom = new WacomBLE(verbose);
+      const timeoutMs = Number(timeout);
       
-      const device = await wacom.scanAndConnect(parseInt(timeout), true);
+      const device = await wacom.scanAndConnect(timeoutMs, true);
       if (!device) {
         logger.error('No Wacom device found or connection failed');
         process.exit(1);
@@ -210,12 +242,14 @@ program
       }
       process.exit(1);
     }
-  });
+  }
+);
 
-program
-  .command('list')
-  .description('List registered devices')
-  .action(() => {
+cli.command(
+  'list',
+  'List registered devices',
+  () => {},
+  () => {
     const devices = config.devices;
     const addresses = Object.keys(devices);
     
@@ -236,12 +270,17 @@ program
       logger.detail(`Orientation: ${device.orientation}`);
       logger.blank();
     });
-  });
+  }
+);
 
-program
-  .command('deregister <address>')
-  .description('Deregister a Wacom device by its Bluetooth address')
-  .action((address) => {
+cli.command(
+  'deregister <address>',
+  'Deregister a Wacom device by its Bluetooth address',
+  (y) => y.positional('address', {
+    type: 'string',
+    describe: 'Bluetooth address to deregister'
+  }),
+  ({address}) => {
     try {
       if (!config.isValidAddress(address)) {
         logger.error(`Invalid Bluetooth address format: ${address}`);
@@ -260,12 +299,14 @@ program
       logger.error(`Error: ${error.message}`);
       process.exit(1);
     }
-  });
+  }
+);
 
-program
-  .command('deregister-all')
-  .description('Deregister all registered Wacom devices')
-  .action(() => {
+cli.command(
+  'deregister-all',
+  'Deregister all registered Wacom devices',
+  () => {},
+  () => {
     try {
       const devices = config.deregisterAllDevices();
       const addresses = Object.keys(devices);
@@ -286,12 +327,7 @@ program
       logger.error(`Error: ${error.message}`);
       process.exit(1);
     }
-  });
+  }
+);
 
-// Default to download command if no command specified
-if (process.argv.length === 2) {
-  process.argv.push('download');
-}
-
-program.parse();
-
+await cli.parseAsync();
