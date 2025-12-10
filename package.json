@@ -3,8 +3,9 @@
   "version": "0.0.6",
   "description": "CLI tool to download notes from Wacom BLE devices as SVG files",
   "main": "index.js",
+  "license": "The Unlicense",
   "bin": {
-    "wacom-download": "./index.js"
+    "wacomdl": "./index.js"
   },
   "scripts": {
     "start": "node index.js"

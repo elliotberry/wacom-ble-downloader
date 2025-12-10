@@ -8,12 +8,10 @@ import os from 'node:os';
 import inquirer from 'inquirer';
 import WacomBLE from './lib/wacom-ble.js';
 import config from './lib/config.js';
-import logger from './lib/logger.js';
+import logger, {setVerbose} from './lib/logger.js';
 
 async function collectProfilePreferences(defaults = {}) {
-  const defaultDir = defaults.downloadDir
-    ? path.resolve(defaults.downloadDir)
-    : path.resolve(path.join(os.homedir(), 'wacom-notes'));
+  const defaultDir = defaults.downloadDir ? path.resolve(defaults.downloadDir) : path.resolve(path.join(os.homedir(), 'wacom-notes'));
   const defaultOrientation = defaults.orientation === 'portrait' ? 'portrait' : 'landscape';
 
   logger.blank();
@@ -24,12 +22,12 @@ async function collectProfilePreferences(defaults = {}) {
   const orientationChoices = [
     {
       name: `Landscape${defaultOrientation === 'landscape' ? ' (default)' : ''}`,
-      value: 'landscape'
+      value: 'landscape',
     },
     {
       name: `Portrait (rotates exported SVG 90 degrees clockwise)${defaultOrientation === 'portrait' ? ' (default)' : ''}`,
-      value: 'portrait'
-    }
+      value: 'portrait',
+    },
   ];
 
   const answers = await inquirer.prompt([
@@ -38,15 +36,15 @@ async function collectProfilePreferences(defaults = {}) {
       name: 'downloadDir',
       message: 'Where should notes be saved?',
       default: defaultDir,
-      filter: (input) => path.resolve((input || '').trim() || defaultDir)
+      filter: input => path.resolve((input || '').trim() || defaultDir),
     },
     {
       type: 'list',
       name: 'orientation',
       message: 'Tablet orientation',
       choices: orientationChoices,
-      default: defaultOrientation
-    }
+      default: defaultOrientation,
+    },
   ]);
 
   logger.blank();
@@ -56,46 +54,45 @@ async function collectProfilePreferences(defaults = {}) {
 
   return {
     downloadDir: answers.downloadDir,
-    orientation: answers.orientation
+    orientation: answers.orientation,
   };
 }
 
-const cli = yargs(hideBin(process.argv))
-  .scriptName('wacom-download')
-  .usage('$0 <command> [options]')
-  .version('1.0.0')
-  .help()
-  .wrap(null);
+const cli = yargs(hideBin(process.argv)).scriptName('wacom-download').usage('$0 <command> [options]').version('1.0.0').help().wrap(null);
 
 cli.command(
   ['download', '$0'],
   'Download notes from a registered Wacom device',
-  (y) => y
-    .option('output', {
-      alias: 'o',
-      type: 'string',
-      describe: 'Output directory for SVG files'
-    })
-    .option('timeout', {
-      alias: 't',
-      type: 'number',
-      default: 30000,
-      describe: 'Scan timeout in milliseconds'
-    })
-    .option('verbose', {
-      alias: 'v',
-      type: 'boolean',
-      default: false,
-      describe: 'Enable verbose logging'
-    }),
+  y =>
+    y
+      .option('output', {
+        alias: 'o',
+        type: 'string',
+        describe: 'Output directory for SVG files',
+      })
+      .option('timeout', {
+        alias: 't',
+        type: 'number',
+        default: 30000,
+        describe: 'Scan timeout in milliseconds',
+      })
+      .option('verbose', {
+        alias: 'v',
+        type: 'boolean',
+        default: false,
+        describe: 'Enable verbose logging',
+      }),
   async ({output, verbose, timeout}) => {
     try {
+      if (verbose) {
+        setVerbose(true);
+      }
       logger.info('Scanning for Wacom devices...');
       logger.detail('Make sure your device is powered on. You may need to press the button briefly to wake it up.');
       if (verbose) {
         logger.detail('Verbose mode enabled: showing all discovered BLE devices');
       }
-      const wacom = new WacomBLE(verbose);
+      const wacom = new WacomBLE();
       const timeoutMs = Number(timeout);
 
       const device = await wacom.scanAndConnect(timeoutMs, false);
@@ -114,38 +111,34 @@ cli.command(
 
       logger.blank();
       logger.success(`Found registered device: ${device.name || device.id}`);
-      
+
       const savedConfig = config.getDevice(device.address);
       let outputDir = output ? path.resolve(output) : null;
 
       if (!outputDir) {
         if (savedConfig?.downloadDir) {
           outputDir = path.resolve(savedConfig.downloadDir);
-          logger.info(`Using saved download directory: ${outputDir}`);
         } else {
           outputDir = path.resolve(path.join(os.homedir(), 'wacom-notes'));
-          logger.note(`No saved download directory found. Using default: ${outputDir}`);
         }
       } else {
-        logger.info(`Using overridden download directory: ${outputDir}`);
       }
 
       if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-        logger.success(`Created output directory: ${outputDir}`);
+        fs.mkdirSync(outputDir, {recursive: true});
+        logger.verbose(`Created output directory: ${outputDir}`);
       }
 
       const orientation = savedConfig?.orientation || 'landscape';
-      if (orientation === 'portrait') {
-        logger.info('Portrait orientation selected: rotating SVG output 90° clockwise.');
-      }
+      // if (orientation === 'portrait') {
+      //   logger.info('Portrait orientation selected: rotating SVG output 90° clockwise.');
+      //  }
 
       logger.info('Connecting and authenticating...');
-      
+
       // Download all notes (they are saved immediately during download)
-      const notes = await wacom.downloadAllNotes(outputDir, { orientation });
-      logger.blank();
-      logger.success(`Downloaded ${notes.length} note(s)`);
+      const notes = await wacom.downloadAllNotes(outputDir, {orientation});
+
 
       await wacom.disconnect();
       logger.success('Done!');
@@ -157,25 +150,26 @@ cli.command(
       }
       process.exit(1);
     }
-  }
+  },
 );
 
 cli.command(
   'register',
   'Register a new Wacom device',
-  (y) => y
-    .option('timeout', {
-      alias: 't',
-      type: 'number',
-      default: 30000,
-      describe: 'Scan timeout in milliseconds'
-    })
-    .option('verbose', {
-      alias: 'v',
-      type: 'boolean',
-      default: false,
-      describe: 'Enable verbose logging'
-    }),
+  y =>
+    y
+      .option('timeout', {
+        alias: 't',
+        type: 'number',
+        default: 30000,
+        describe: 'Scan timeout in milliseconds',
+      })
+      .option('verbose', {
+        alias: 'v',
+        type: 'boolean',
+        default: false,
+        describe: 'Enable verbose logging',
+      }),
   async ({verbose, timeout}) => {
     try {
       logger.headline('=== Wacom Device Registration ===');
@@ -186,14 +180,14 @@ cli.command(
       logger.detail('3. Keep the LED blinking while registration proceeds');
       logger.detail('4. Make sure Bluetooth is enabled on your computer');
       logger.blank();
-      
+
       logger.info('Scanning for Wacom devices...');
       if (verbose) {
         logger.detail('Verbose mode enabled: showing all discovered BLE devices');
       }
       const wacom = new WacomBLE(verbose);
       const timeoutMs = Number(timeout);
-      
+
       const device = await wacom.scanAndConnect(timeoutMs, true);
       if (!device) {
         logger.error('No Wacom device found or connection failed');
@@ -215,7 +209,7 @@ cli.command(
       logger.blank();
       logger.success(`Found unregistered device: ${device.name || device.id}`);
       logger.detail(`Address: ${device.address}`);
-      
+
       // Register the device
       const registrationResult = await wacom.registerDevice();
 
@@ -224,7 +218,7 @@ cli.command(
       const savedDevice = config.getDevice(registrationResult.address) || {};
       const preferences = await collectProfilePreferences({
         downloadDir: savedDevice.downloadDir || path.resolve(path.join(os.homedir(), 'wacom-notes')),
-        orientation: savedDevice.orientation || 'landscape'
+        orientation: savedDevice.orientation || 'landscape',
       });
       const updatedProfile = config.updateDevice(registrationResult.address, preferences);
 
@@ -242,7 +236,7 @@ cli.command(
       }
       process.exit(1);
     }
-  }
+  },
 );
 
 cli.command(
@@ -252,7 +246,7 @@ cli.command(
   () => {
     const devices = config.devices;
     const addresses = Object.keys(devices);
-    
+
     if (addresses.length === 0) {
       logger.warn('No registered devices found.');
       return;
@@ -270,16 +264,17 @@ cli.command(
       logger.detail(`Orientation: ${device.orientation}`);
       logger.blank();
     });
-  }
+  },
 );
 
 cli.command(
   'deregister <address>',
   'Deregister a Wacom device by its Bluetooth address',
-  (y) => y.positional('address', {
-    type: 'string',
-    describe: 'Bluetooth address to deregister'
-  }),
+  y =>
+    y.positional('address', {
+      type: 'string',
+      describe: 'Bluetooth address to deregister',
+    }),
   ({address}) => {
     try {
       if (!config.isValidAddress(address)) {
@@ -299,7 +294,7 @@ cli.command(
       logger.error(`Error: ${error.message}`);
       process.exit(1);
     }
-  }
+  },
 );
 
 cli.command(
@@ -327,7 +322,7 @@ cli.command(
       logger.error(`Error: ${error.message}`);
       process.exit(1);
     }
-  }
+  },
 );
 
 await cli.parseAsync();

@@ -108,8 +108,3 @@ wacom-download download --verbose
 - SVG files are named using the note's timestamp
 - Currently supports Bamboo Spark, Bamboo Slate, Intuos Pro Paper, and compatible Smartpad models.
 - The downloader mirrors Wacom Inkspace’s decompression/parsing logic to ensure the SVG matches what the device recorded.
-
-## License
-
-MIT
-
